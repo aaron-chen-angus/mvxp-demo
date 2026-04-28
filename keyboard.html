@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MVXP · Keyboard Demo · 翎羽悸動</title>
+
+<!-- Fonts: Syne (display) + DM Sans (body) — MVXP Biopunk Precision stack -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- Tone.js for cinematic string pad synthesis -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+<style>
+  /* ============================================================
+     MVXP KEYBOARD DEMO  ·  v2  ·  Cinematic Dark / Neon Accents
+     ============================================================ */
+
+  :root {
+    --bg-0:        #05060a;
+    --bg-1:        #0a0d17;
+    --bg-2:        #11152a;
+    --ink:         #e8ecff;
+    --ink-dim:     #8a94c2;
+    --ink-faint:   #4a5378;
+
+    --accent-cyan:    #5ee5ff;
+    --accent-violet:  #b07bff;
+    --accent-pink:    #ff5ec7;
+    --accent-gold:    #ffd86b;
+
+    --key-white:      #f4f6ff;
+    --key-white-dim:  #d6dcf2;
+    --key-black:      #0c0e18;
+
+    --glow-cyan:    0 0 24px rgba(94, 229, 255, 0.55), 0 0 60px rgba(94, 229, 255, 0.25);
+    --glow-violet:  0 0 28px rgba(176, 123, 255, 0.55), 0 0 70px rgba(176, 123, 255, 0.25);
+
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+
+    --font-display: 'Syne', system-ui, sans-serif;
+    --font-body:    'DM Sans', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-0);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* --- Cinematic atmospheric background ------------------------ */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 20%, rgba(94, 229, 255, 0.18), transparent 60%),
+      radial-gradient(ellipse 70% 60% at 85% 75%, rgba(176, 123, 255, 0.22), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 94, 199, 0.08), transparent 70%),
+      linear-gradient(180deg, #05060a 0%, #0a0d17 50%, #060810 100%);
+    z-index: -2;
+  }
+
+  /* Subtle film grain */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: -1;
+    mix-blend-mode: overlay;
+  }
+
+  /* Cinematic vignette */
+  .vignette {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 200px rgba(0, 0, 0, 0.85), inset 0 0 80px rgba(0,0,0,0.5);
+    z-index: 100;
+  }
+
+  /* ============================================================
+     LAYOUT  ·  No bottom transport, video takes full right column
+     ============================================================ */
+
+  .stage {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    grid-template-rows: 56px 1fr;
+    grid-template-areas:
+      "header header"
+      "main   video";
+    gap: 0;
+    padding: 18px;
+  }
+
+  /* --- Header strip -------------------------------------------- */
+  .header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+  }
+
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: #05060a;
+    font-size: 13px;
+    letter-spacing: -0.5px;
+    box-shadow: var(--glow-cyan);
+  }
+  .brand-text {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 4px;
+    color: var(--ink);
+  }
+  .brand-text span { color: var(--accent-cyan); }
+
+  .header-meta {
+    display: flex; gap: 28px;
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .header-meta b { color: var(--ink-dim); font-weight: 500; }
+
+  /* ============================================================
+     MAIN  ·  KEYBOARD + CHORD CONTROLS
+     ============================================================ */
+  .main {
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    min-height: 0;
+    padding: 6px 14px 0 14px;
+  }
+
+  /* --- Now Playing display ------------------------------------- */
+  .now-playing {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, rgba(94,229,255,0.05), rgba(176,123,255,0.05));
+    border: 1px solid rgba(94, 229, 255, 0.12);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px);
+  }
+  .np-left { display: flex; align-items: center; gap: 18px; }
+  .np-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .np-chord {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 34px;
+    letter-spacing: -1px;
+    color: var(--ink);
+    line-height: 1;
+    transition: color 0.3s, text-shadow 0.3s;
+    min-width: 140px;
+  }
+  .np-chord.active {
+    color: var(--accent-cyan);
+    text-shadow: var(--glow-cyan);
+  }
+  .np-notes {
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: var(--ink-dim);
+    font-variant: tabular-nums;
+  }
+
+  /* --- Chord progression cards --------------------------------- */
+  .progression { display: flex; align-items: center; gap: 10px; }
+  .prog-label {
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-right: 4px;
+  }
+  .prog-step {
+    position: relative;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink-dim);
+    transition: all 0.3s ease;
+    min-width: 56px;
+    text-align: center;
+  }
+  .prog-step.next {
+    border-color: rgba(255, 216, 107, 0.5);
+    color: var(--accent-gold);
+    box-shadow: 0 0 18px rgba(255, 216, 107, 0.25);
+    animation: pulseNext 1.6s ease-in-out infinite;
+  }
+  .prog-step.played {
+    border-color: rgba(94, 229, 255, 0.4);
+    color: var(--accent-cyan);
+    background: rgba(94, 229, 255, 0.06);
+  }
+  @keyframes pulseNext {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+  }
+  .prog-arrow { color: var(--ink-faint); font-size: 14px; }
+
+  /* ============================================================
+     KEYBOARD
+     ============================================================ */
+  .keyboard-shell {
+    flex: 1;
+    background: linear-gradient(180deg, rgba(20,24,42,0.7), rgba(10,13,23,0.9));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    min-height: 0;
+  }
+  .keyboard-shell::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(94,229,255,0.4), transparent);
+  }
+
+  .keyboard {
+    flex: 1;
+    position: relative;
+    display: flex;
+    user-select: none;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6), inset 0 -2px 0 rgba(0,0,0,0.4);
+    min-height: 180px;
+  }
+
+  .key-white {
+    flex: 1;
+    background: linear-gradient(180deg, var(--key-white) 0%, var(--key-white-dim) 100%);
+    border-right: 1px solid rgba(0,0,0,0.15);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.08s ease, box-shadow 0.2s ease, transform 0.08s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding-bottom: 12px;
+  }
+  .key-white:last-child { border-right: none; }
+  .key-white::after {
+    content: attr(data-label);
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(10,14,30, 0.35);
+    letter-spacing: 1px;
+  }
+  .key-white:hover {
+    background: linear-gradient(180deg, #fff 0%, #e8ecf8 100%);
+  }
+  .key-white:active,
+  .key-white.pressed {
+    background: linear-gradient(180deg, #c9d2ee 0%, #a8b3d8 100%);
+    transform: translateY(2px);
+  }
+  .key-white.active {
+    background: linear-gradient(180deg, #d8f5ff 0%, #8fd9f4 100%);
+    box-shadow:
+      inset 0 0 30px rgba(94, 229, 255, 0.6),
+      0 0 30px rgba(94, 229, 255, 0.7),
+      0 0 60px rgba(94, 229, 255, 0.4);
+    animation: keyPulse 1.2s ease-out;
+  }
+  .key-white.active::after { color: #07344a; }
+
+  .black-keys { position: absolute; inset: 0; pointer-events: none; }
+  .key-black {
+    position: absolute;
+    top: 0;
+    width: 4.5%;
+    height: 62%;
+    background: linear-gradient(180deg, #1a1f33 0%, var(--key-black) 90%, #000 100%);
+    border-radius: 0 0 4px 4px;
+    box-shadow:
+      0 4px 8px rgba(0,0,0,0.6),
+      inset 0 -3px 0 rgba(255,255,255,0.04),
+      inset 0 1px 0 rgba(255,255,255,0.08);
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.08s ease, box-shadow 0.2s ease, transform 0.08s ease;
+  }
+  .key-black:hover {
+    background: linear-gradient(180deg, #242a45 0%, #14182a 90%, #000 100%);
+  }
+  .key-black:active,
+  .key-black.pressed {
+    background: linear-gradient(180deg, #0a0c18 0%, #000 100%);
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.6), inset 0 0 8px rgba(0,0,0,0.8);
+  }
+  .key-black.active {
+    background: linear-gradient(180deg, #4ec5ff 0%, #2980b9 90%, #1a5278 100%);
+    box-shadow:
+      inset 0 0 20px rgba(255,255,255,0.4),
+      0 0 28px rgba(94, 229, 255, 0.85),
+      0 0 60px rgba(94, 229, 255, 0.5);
+    animation: keyPulse 1.2s ease-out;
+  }
+
+  @keyframes keyPulse {
+    0%   { filter: brightness(1.4); }
+    50%  { filter: brightness(1.15); }
+    100% { filter: brightness(1.0); }
+  }
+
+  /* ============================================================
+     INSTRUMENT SELECTOR
+     ============================================================ */
+  .instrument-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ib-label {
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+  }
+  .ib-options {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 2px;
+  }
+  .ib-options::-webkit-scrollbar { display: none; }
+
+  .ib-btn {
+    flex: 1;
+    min-width: fit-content;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .ib-btn:hover {
+    background: rgba(94,229,255,0.08);
+    border-color: rgba(94,229,255,0.3);
+    color: var(--ink);
+  }
+  .ib-btn.active {
+    background: linear-gradient(135deg, rgba(94,229,255,0.18), rgba(176,123,255,0.18));
+    border-color: var(--accent-cyan);
+    color: var(--ink);
+    box-shadow: 0 0 16px rgba(94,229,255,0.25);
+  }
+  .ib-icon {
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  /* ============================================================
+     CHORD TRIGGER BUTTONS
+     ============================================================ */
+  .chord-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+
+  .chord-btn {
+    position: relative;
+    padding: 16px 16px;
+    background: linear-gradient(135deg, rgba(94,229,255,0.08), rgba(176,123,255,0.08));
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-md);
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+    overflow: hidden;
+    text-align: left;
+    font-family: var(--font-body);
+  }
+  .chord-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(94, 229, 255, 0.18), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .chord-btn:hover {
+    border-color: rgba(94, 229, 255, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(94, 229, 255, 0.15);
+  }
+  .chord-btn:hover::before { opacity: 1; }
+  .chord-btn:active { transform: translateY(0); }
+  .chord-btn.active {
+    border-color: var(--accent-cyan);
+    background: linear-gradient(135deg, rgba(94,229,255,0.25), rgba(176,123,255,0.2));
+    box-shadow: var(--glow-cyan);
+  }
+  .chord-btn.held {
+    border-color: var(--accent-cyan);
+    background: linear-gradient(135deg, rgba(94,229,255,0.32), rgba(176,123,255,0.28));
+    box-shadow:
+      0 0 30px rgba(94, 229, 255, 0.6),
+      0 0 70px rgba(176, 123, 255, 0.35),
+      inset 0 0 20px rgba(94, 229, 255, 0.2);
+    transform: translateY(1px);
+  }
+  .chord-btn.held::before { opacity: 1; }
+
+  .chord-btn-num {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--accent-cyan);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    position: relative;
+  }
+  .chord-btn-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    letter-spacing: -0.5px;
+    line-height: 1;
+    margin-bottom: 4px;
+    position: relative;
+  }
+  .chord-btn-notes {
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 2px;
+    font-variant: tabular-nums;
+    position: relative;
+  }
+
+  /* --- Track metadata strip below keyboard --------------------- */
+  .track-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 22px;
+    background: linear-gradient(135deg, rgba(176,123,255,0.06), rgba(94,229,255,0.04));
+    border: 1px solid rgba(176, 123, 255, 0.14);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px);
+  }
+  .tm-art {
+    width: 44px; height: 44px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent-violet), var(--accent-pink));
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: var(--glow-violet);
+  }
+  .tm-art svg { width: 22px; height: 22px; color: #05060a; }
+  .tm-info { flex: 1; min-width: 0; }
+  .tm-tag {
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--accent-violet);
+    margin-bottom: 4px;
+  }
+  .tm-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--ink);
+    letter-spacing: -0.3px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .tm-artist {
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .tm-meta-pills { display: flex; gap: 8px; flex-shrink: 0; }
+  .tm-pill {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+  }
+  .tm-pill b { color: var(--accent-cyan); font-weight: 600; }
+
+  /* ============================================================
+     VIDEO PANEL  ·  RIGHT SIDE  ·  Full vertical height
+     ============================================================ */
+  .video-panel {
+    grid-area: video;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: 6px 0 0 14px;
+    min-height: 0;
+  }
+
+  .video-frame {
+    position: relative;
+    background: #000;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow:
+      0 25px 60px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(255,255,255,0.06),
+      0 0 80px rgba(176, 123, 255, 0.15);
+    aspect-ratio: 9 / 16;
+    height: 100%;
+    max-width: 100%;
+  }
+
+  .video-frame video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    background: #000;
+  }
+
+  .video-frame::after {
+    content: '';
+    position: absolute; inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 80px rgba(0,0,0,0.5), inset 0 0 24px rgba(0,0,0,0.3);
+    border-radius: var(--radius-lg);
+    z-index: 2;
+  }
+
+  .video-tag {
+    position: absolute;
+    top: 16px; left: 16px;
+    z-index: 4;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    background: rgba(0,0,0,0.55);
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(94, 229, 255, 0.3);
+    backdrop-filter: blur(8px);
+  }
+
+  /* --- Overlay video controls (inside the player) -------------- */
+  .video-controls {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 4;
+    padding: 18px 16px 14px;
+    background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.85) 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+  }
+  .video-frame:hover .video-controls,
+  .video-frame.show-controls .video-controls {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .vc-scrubber {
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    overflow: visible;
+  }
+  .vc-scrubber-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+    border-radius: 4px;
+    position: relative;
+    transition: width 0.1s linear;
+  }
+  .vc-scrubber-fill::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px; height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(94, 229, 255, 0.85), 0 2px 6px rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .vc-scrubber:hover .vc-scrubber-fill::after { opacity: 1; }
+
+  .vc-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .vc-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+  }
+  .vc-btn:hover {
+    background: rgba(94, 229, 255, 0.15);
+    border-color: rgba(94, 229, 255, 0.5);
+    color: var(--accent-cyan);
+  }
+  .vc-btn.primary {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+    border-color: transparent;
+    color: #05060a;
+    width: 42px; height: 42px;
+    box-shadow: 0 4px 18px rgba(94, 229, 255, 0.45);
+  }
+  .vc-btn.primary:hover {
+    transform: scale(1.06);
+    box-shadow: 0 4px 24px rgba(94, 229, 255, 0.65);
+  }
+  .vc-btn svg { width: 14px; height: 14px; }
+  .vc-btn.primary svg { width: 18px; height: 18px; }
+
+  .vc-time {
+    font-family: var(--font-body);
+    font-variant: tabular-nums;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.85);
+    margin-left: auto;
+  }
+  .vc-time .sep { color: rgba(255,255,255,0.4); margin: 0 4px; }
+  .vc-time .total { color: rgba(255,255,255,0.55); }
+
+  /* Big centered play button when paused */
+  .video-bigplay {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  .video-bigplay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .video-bigplay button {
+    width: 76px; height: 76px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+    color: #05060a;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 16px 40px rgba(94, 229, 255, 0.45), 0 0 80px rgba(176,123,255,0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .video-bigplay button:hover {
+    transform: scale(1.06);
+    box-shadow: 0 20px 50px rgba(94, 229, 255, 0.65), 0 0 100px rgba(176,123,255,0.5);
+  }
+  .video-bigplay svg { width: 30px; height: 30px; margin-left: 4px; }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width: 1100px) {
+    .stage { grid-template-columns: 1fr 360px; }
+  }
+  @media (max-width: 900px) {
+    .header-meta { display: none; }
+    .stage { grid-template-columns: 1fr 320px; }
+    .tm-meta-pills { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="vignette"></div>
+
+<div class="stage">
+
+  <!-- =============== HEADER =============== -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div class="brand-text">MVXP <span>·</span> KEYBOARD</div>
+    </div>
+    <div class="header-meta">
+      <div><b>MODULE</b> · DEMO 04</div>
+      <div><b>KEY</b> · F♯ MAJOR</div>
+      <div><b>TEMPO</b> · 78 BPM</div>
+    </div>
+  </header>
+
+  <!-- =============== MAIN  ·  KEYBOARD =============== -->
+  <main class="main">
+
+    <!-- Now Playing + Progression -->
+    <div class="now-playing">
+      <div class="np-left">
+        <div>
+          <div class="np-label">Now Playing</div>
+          <div class="np-chord" id="npChord">—</div>
+        </div>
+        <div>
+          <div class="np-label">Notes</div>
+          <div class="np-notes" id="npNotes">— · — · —</div>
+        </div>
+      </div>
+      <div class="progression" id="progression">
+        <div class="prog-label">Progression</div>
+      </div>
+    </div>
+
+    <!-- Keyboard -->
+    <div class="keyboard-shell">
+      <div class="keyboard" id="keyboard">
+        <div class="black-keys" id="blackKeys"></div>
+      </div>
+
+      <!-- Instrument selector -->
+      <div class="instrument-bar">
+        <div class="ib-label">Voice</div>
+        <div class="ib-options" id="instrumentOptions"></div>
+      </div>
+
+      <div class="chord-row" id="chordRow"></div>
+    </div>
+
+    <!-- Track metadata (moved here) -->
+    <div class="track-meta">
+      <div class="tm-art">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+        </svg>
+      </div>
+      <div class="tm-info">
+        <div class="tm-tag">▸ Featured Performance</div>
+        <div class="tm-title">翎羽悸動</div>
+        <div class="tm-artist">Selina Goh · 吴宛颖</div>
+      </div>
+      <div class="tm-meta-pills">
+        <div class="tm-pill"><b>KEY</b> &nbsp;F♯ MAJOR</div>
+        <div class="tm-pill"><b>BPM</b> &nbsp;78</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- =============== VIDEO PANEL  ·  Full height =============== -->
+  <aside class="video-panel">
+    <div class="video-frame" id="videoFrame">
+      <div class="video-tag">▸ MV PERFORMANCE</div>
+
+      <video
+        id="video"
+        playsinline
+        preload="auto"
+        src="https://d2yy42b28nebea.cloudfront.net/activity/9_S9_-_D3_MASTER_20260311_c64c9af3_20260311_6f90eb13.mp4">
+      </video>
+
+      <!-- Centered big play button shown when paused -->
+      <div class="video-bigplay show" id="bigPlay">
+        <button id="bigPlayBtn" aria-label="Play video">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+      </div>
+
+      <!-- Overlay controls -->
+      <div class="video-controls" id="videoControls">
+        <div class="vc-scrubber" id="scrubber">
+          <div class="vc-scrubber-fill" id="scrubberFill"></div>
+        </div>
+        <div class="vc-bar">
+          <button class="vc-btn primary" id="btnPlay" aria-label="Play">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button class="vc-btn" id="btnPause" aria-label="Pause">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+          </button>
+          <button class="vc-btn" id="btnStop" aria-label="Stop">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+          </button>
+          <div class="vc-time">
+            <span id="timeCurrent">0:00</span>
+            <span class="sep">/</span>
+            <span class="total" id="timeTotal">0:00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================= -->
+<script>
+/* ============================================================
+   MVXP KEYBOARD DEMO  ·  v2 Logic
+   ============================================================ */
+
+const KEYBOARD_RANGE = { startOctave: 3, octaves: 2 };
+const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const BLACK_NOTES = [
+  { after: 'C', name: 'C#' },
+  { after: 'D', name: 'D#' },
+  { after: 'F', name: 'F#' },
+  { after: 'G', name: 'G#' },
+  { after: 'A', name: 'A#' },
+];
+
+const CHORDS = [
+  { id: 1, name: 'F♯', full: 'F♯ Major',  notes: ['F#3', 'A#3', 'C#4', 'F#4'], display: 'F# · A# · C#' },
+  { id: 2, name: 'C♯', full: 'C♯ Major',  notes: ['C#3', 'F3',  'G#3', 'C#4'], display: 'C# · F · G#' },
+  { id: 3, name: 'D♯m',full: 'D♯ Minor',  notes: ['D#3', 'F#3', 'A#3', 'D#4'], display: 'D# · F# · A#' },
+  { id: 4, name: 'B',  full: 'B Major',   notes: ['B3',  'D#4', 'F#4', 'B4'],  display: 'B · D# · F#' }
+];
+
+const PROGRESSION = [0, 1, 2, 3];
+let progressionStep = 0;
+
+/* ============================================================
+   AUDIO ENGINE  ·  Multi-instrument · Sustain-on-hold
+   ----  Each instrument is a PolySynth preset with envelope
+         tuned to feel like the real voice. They share an FX
+         chain (chorus → filter → reverb) but with per-instrument
+         filter cutoff and reverb wet for character.
+   ============================================================ */
+let audioReady = false;
+let audioInitializing = false;
+let masterChain = null;       // { reverb, chorus, filter, output }
+let synths = {};              // map: instrument id → PolySynth
+let activeSynth = null;       // currently selected synth
+let activeInstrumentId = 'strings';
+
+const INSTRUMENTS = [
+  {
+    id: 'strings', label: 'Strings', icon: '🎻',
+    description: 'Cinematic string ensemble',
+    config: {
+      oscillator: { type: 'fatsawtooth', count: 3, spread: 28 },
+      envelope: { attack: 0.85, decay: 0.4, sustain: 1.0, release: 2.4 },
+      volume: -10
+    },
+    filter: 2400, reverb: 0.55, detune: -3
+  },
+  {
+    id: 'violin', label: 'Violin', icon: '🎻',
+    description: 'Solo violin, bowed',
+    config: {
+      oscillator: { type: 'fatsawtooth', count: 2, spread: 14 },
+      envelope: { attack: 0.35, decay: 0.2, sustain: 0.95, release: 1.4 },
+      volume: -12
+    },
+    filter: 3200, reverb: 0.45, detune: 4
+  },
+  {
+    id: 'cello', label: 'Cello', icon: '🎼',
+    description: 'Deep bowed cello',
+    config: {
+      oscillator: { type: 'fattriangle', count: 3, spread: 22 },
+      envelope: { attack: 0.55, decay: 0.3, sustain: 1.0, release: 2.0 },
+      volume: -8
+    },
+    filter: 1600, reverb: 0.5, detune: -6
+  },
+  {
+    id: 'piano', label: 'Piano', icon: '🎹',
+    description: 'Felt piano',
+    config: {
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.005, decay: 0.6, sustain: 0.55, release: 1.6 },
+      volume: -8
+    },
+    filter: 4500, reverb: 0.32, detune: 0
+  },
+  {
+    id: 'organ', label: 'Organ', icon: '🎛️',
+    description: 'Cathedral pipe organ',
+    config: {
+      oscillator: { type: 'fatsine', count: 4, spread: 8 },
+      envelope: { attack: 0.08, decay: 0.0, sustain: 1.0, release: 0.4 },
+      volume: -11
+    },
+    filter: 3000, reverb: 0.7, detune: 0
+  },
+  {
+    id: 'synth', label: 'Synth', icon: '✦',
+    description: 'Analog warm pad',
+    config: {
+      oscillator: { type: 'fatsawtooth', count: 4, spread: 40 },
+      envelope: { attack: 1.2, decay: 0.5, sustain: 0.9, release: 3.0 },
+      volume: -10
+    },
+    filter: 1800, reverb: 0.6, detune: 8
+  },
+  {
+    id: 'harpsichord', label: 'Harpsichord', icon: '♪',
+    description: 'Plucked baroque',
+    config: {
+      oscillator: { type: 'sawtooth' },
+      envelope: { attack: 0.001, decay: 0.4, sustain: 0.15, release: 0.8 },
+      volume: -10
+    },
+    filter: 5500, reverb: 0.28, detune: 0
+  },
+  {
+    id: 'brass', label: 'Brass', icon: '🎺',
+    description: 'Cinematic brass',
+    config: {
+      oscillator: { type: 'fatsquare', count: 3, spread: 18 },
+      envelope: { attack: 0.18, decay: 0.25, sustain: 0.9, release: 1.2 },
+      volume: -14
+    },
+    filter: 2200, reverb: 0.4, detune: -4
+  }
+];
+
+async function ensureAudio() {
+  if (audioReady || audioInitializing) return;
+  audioInitializing = true;
+  try {
+    await Tone.start();
+
+    // Master FX chain
+    const reverb = new Tone.Reverb({ decay: 6.5, preDelay: 0.04, wet: 0.55 }).toDestination();
+    await reverb.generate();
+
+    const chorus = new Tone.Chorus({ frequency: 0.6, depth: 0.45, wet: 0.35 })
+      .connect(reverb).start();
+
+    const filter = new Tone.Filter({ frequency: 2400, type: 'lowpass', Q: 0.6 })
+      .connect(chorus);
+
+    masterChain = { reverb, chorus, filter };
+
+    // Build all instrument synths up front so switching is instant
+    INSTRUMENTS.forEach(inst => {
+      const synth = new Tone.PolySynth(Tone.Synth, inst.config).connect(filter);
+      synth.set({ detune: inst.detune });
+      synths[inst.id] = synth;
+    });
+
+    activeSynth = synths[activeInstrumentId];
+    applyInstrumentFx(getInstrument(activeInstrumentId));
+
+    audioReady = true;
+  } catch (err) {
+    console.warn('Audio init failed:', err);
+  } finally {
+    audioInitializing = false;
+  }
+}
+
+function getInstrument(id) {
+  return INSTRUMENTS.find(i => i.id === id);
+}
+
+function applyInstrumentFx(inst) {
+  if (!masterChain || !inst) return;
+  // Smooth ramps so switching mid-play doesn't click
+  masterChain.filter.frequency.rampTo(inst.filter, 0.15);
+  masterChain.reverb.wet.rampTo(inst.reverb, 0.15);
+}
+
+function setInstrument(id) {
+  if (id === activeInstrumentId) return;
+
+  // Release any held notes on the previous synth before swapping
+  if (activeSynth) {
+    try { activeSynth.releaseAll(); } catch (_) {}
+  }
+
+  activeInstrumentId = id;
+  if (audioReady && synths[id]) {
+    activeSynth = synths[id];
+    applyInstrumentFx(getInstrument(id));
+  }
+
+  // Update UI
+  document.querySelectorAll('.ib-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.id === id);
+  });
+}
+
+/* ---------- Sustain-on-hold playback ---------- */
+function attackChord(chordIdx) {
+  if (!audioReady || !activeSynth) return;
+  const chord = CHORDS[chordIdx];
+  // Slight stagger for orchestral feel
+  const now = Tone.now();
+  chord.notes.forEach((note, i) => {
+    activeSynth.triggerAttack(note, now + i * 0.012);
+  });
+}
+
+function releaseChord(chordIdx) {
+  if (!audioReady || !activeSynth) return;
+  const chord = CHORDS[chordIdx];
+  activeSynth.triggerRelease(chord.notes);
+}
+
+function playSingleNote(note) {
+  if (!audioReady || !activeSynth) return;
+  activeSynth.triggerAttackRelease(note, '4n');
+}
+
+function attachFirstInteractionListener() {
+  const handler = async () => {
+    await ensureAudio();
+    document.removeEventListener('click', handler);
+    document.removeEventListener('keydown', handler);
+    document.removeEventListener('touchstart', handler);
+  };
+  document.addEventListener('click', handler);
+  document.addEventListener('keydown', handler);
+  document.addEventListener('touchstart', handler);
+}
+
+/* ============================================================
+   KEYBOARD GENERATION
+   ============================================================ */
+function buildKeyboard() {
+  const keyboard = document.getElementById('keyboard');
+  const blackKeysContainer = document.getElementById('blackKeys');
+  const totalWhiteKeys = WHITE_NOTES.length * KEYBOARD_RANGE.octaves + 1;
+  const whiteKeyWidth = 100 / totalWhiteKeys;
+
+  for (let oct = 0; oct < KEYBOARD_RANGE.octaves; oct++) {
+    const octave = KEYBOARD_RANGE.startOctave + oct;
+    WHITE_NOTES.forEach(n => {
+      const key = document.createElement('div');
+      key.className = 'key-white';
+      const noteName = `${n}${octave}`;
+      key.dataset.note = noteName;
+      key.dataset.label = (n === 'C') ? `C${octave}` : '';
+      key.addEventListener('mousedown', () => onKeyPress(noteName, key));
+      keyboard.insertBefore(key, blackKeysContainer);
+    });
+  }
+  {
+    const finalOctave = KEYBOARD_RANGE.startOctave + KEYBOARD_RANGE.octaves;
+    const key = document.createElement('div');
+    key.className = 'key-white';
+    const noteName = `C${finalOctave}`;
+    key.dataset.note = noteName;
+    key.dataset.label = `C${finalOctave}`;
+    key.addEventListener('mousedown', () => onKeyPress(noteName, key));
+    keyboard.insertBefore(key, blackKeysContainer);
+  }
+
+  let whiteCounter = 0;
+  for (let oct = 0; oct < KEYBOARD_RANGE.octaves; oct++) {
+    const octave = KEYBOARD_RANGE.startOctave + oct;
+    WHITE_NOTES.forEach(wn => {
+      const black = BLACK_NOTES.find(b => b.after === wn);
+      if (black) {
+        const noteName = `${black.name}${octave}`;
+        const bk = document.createElement('div');
+        bk.className = 'key-black';
+        bk.dataset.note = noteName;
+        const leftPct = ((whiteCounter + 1) * whiteKeyWidth) - (4.5 / 2);
+        bk.style.left = `${leftPct}%`;
+        bk.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          onKeyPress(noteName, bk);
+        });
+        blackKeysContainer.appendChild(bk);
+      }
+      whiteCounter++;
+    });
+  }
+}
+
+async function onKeyPress(note, el) {
+  await ensureAudio();
+  playSingleNote(note);
+  flashKey(el);
+}
+
+function flashKey(el) {
+  el.classList.remove('active');
+  void el.offsetWidth;
+  el.classList.add('active');
+  setTimeout(() => el.classList.remove('active'), 1200);
+}
+
+function highlightChordKeys(notes) {
+  notes.forEach((note) => {
+    const sel = document.querySelector(`[data-note="${CSS.escape(note)}"]`);
+    if (sel) flashKey(sel);
+  });
+}
+
+function buildChordButtons() {
+  const row = document.getElementById('chordRow');
+  CHORDS.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'chord-btn';
+    btn.dataset.idx = i;
+    btn.innerHTML = `
+      <div class="chord-btn-num">${c.id}</div>
+      <div class="chord-btn-name">${c.name}</div>
+      <div class="chord-btn-notes">${c.display}</div>
+    `;
+    bindHoldHandlers(btn, i);
+    row.appendChild(btn);
+  });
+}
+
+/* ---------- Press-and-hold binding ---------- */
+// We avoid 'click' so that we can react on press (down) and release (up).
+// Tracks pressed state per button to dedupe pointer/touch events.
+function bindHoldHandlers(btn, chordIdx) {
+  let pressed = false;
+
+  const press = async (e) => {
+    if (pressed) return;
+    e.preventDefault();
+    pressed = true;
+    await ensureAudio();
+    onChordPress(chordIdx, btn);
+  };
+
+  const release = (e) => {
+    if (!pressed) return;
+    pressed = false;
+    onChordRelease(chordIdx, btn);
+  };
+
+  // Mouse
+  btn.addEventListener('mousedown', press);
+  btn.addEventListener('mouseup', release);
+  btn.addEventListener('mouseleave', release);
+
+  // Touch
+  btn.addEventListener('touchstart', press, { passive: false });
+  btn.addEventListener('touchend', release);
+  btn.addEventListener('touchcancel', release);
+
+  // Keyboard accessibility (focused button + Space/Enter)
+  btn.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'Enter') {
+      if (e.repeat) return;
+      press(e);
+    }
+  });
+  btn.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' || e.code === 'Enter') release(e);
+  });
+}
+
+async function onChordPress(idx, btnEl) {
+  const chord = CHORDS[idx];
+
+  // Audio: attack and hold
+  attackChord(idx);
+
+  // Visual: keys flash + sustained glow on chord button
+  highlightChordKeys(chord.notes);
+  btnEl.classList.add('held');
+
+  // Now Playing display
+  const npChord = document.getElementById('npChord');
+  const npNotes = document.getElementById('npNotes');
+  npChord.textContent = chord.full;
+  npChord.classList.add('active');
+  npNotes.textContent = chord.display;
+
+  // Progression advancement
+  updateProgression(idx);
+}
+
+function onChordRelease(idx, btnEl) {
+  releaseChord(idx);
+  btnEl.classList.remove('held');
+
+  // Fade the Now Playing emphasis but keep the text visible
+  const npChord = document.getElementById('npChord');
+  setTimeout(() => npChord.classList.remove('active'), 200);
+}
+
+/* ---------- Instrument selector ---------- */
+function buildInstrumentSelector() {
+  const wrap = document.getElementById('instrumentOptions');
+  INSTRUMENTS.forEach(inst => {
+    const btn = document.createElement('button');
+    btn.className = 'ib-btn';
+    btn.dataset.id = inst.id;
+    if (inst.id === activeInstrumentId) btn.classList.add('active');
+    btn.innerHTML = `<span class="ib-icon">${inst.icon}</span>${inst.label}`;
+    btn.title = inst.description;
+    btn.addEventListener('click', async () => {
+      await ensureAudio();
+      setInstrument(inst.id);
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+function buildProgression() {
+  const wrap = document.getElementById('progression');
+  PROGRESSION.forEach((idx, i) => {
+    const step = document.createElement('div');
+    step.className = 'prog-step';
+    step.dataset.idx = idx;
+    step.dataset.pos = i;
+    step.textContent = CHORDS[idx].name;
+    wrap.appendChild(step);
+    if (i < PROGRESSION.length - 1) {
+      const arrow = document.createElement('span');
+      arrow.className = 'prog-arrow';
+      arrow.textContent = '→';
+      wrap.appendChild(arrow);
+    }
+  });
+  refreshProgression();
+}
+
+function updateProgression(playedIdx) {
+  const expected = PROGRESSION[progressionStep];
+  if (playedIdx === expected) {
+    progressionStep = (progressionStep + 1) % PROGRESSION.length;
+  }
+  refreshProgression();
+}
+
+function refreshProgression() {
+  const steps = document.querySelectorAll('.prog-step');
+  steps.forEach(s => {
+    const pos = parseInt(s.dataset.pos, 10);
+    s.classList.remove('next', 'played');
+    if (pos === progressionStep) s.classList.add('next');
+    else if (pos < progressionStep) s.classList.add('played');
+  });
+}
+
+/* ============================================================
+   VIDEO PLAYER
+   ----  CORS fix: NO `crossorigin="anonymous"` attr on <video>.
+         Wait for `canplay` before play() to avoid race conditions.
+   ============================================================ */
+const video = document.getElementById('video');
+const videoFrame = document.getElementById('videoFrame');
+const btnPlay = document.getElementById('btnPlay');
+const btnPause = document.getElementById('btnPause');
+const btnStop = document.getElementById('btnStop');
+const bigPlay = document.getElementById('bigPlay');
+const bigPlayBtn = document.getElementById('bigPlayBtn');
+const timeCurrent = document.getElementById('timeCurrent');
+const timeTotal = document.getElementById('timeTotal');
+const scrubber = document.getElementById('scrubber');
+const scrubberFill = document.getElementById('scrubberFill');
+
+let videoReady = false;
+let pendingPlay = false;
+
+function fmtTime(s) {
+  if (!isFinite(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+video.addEventListener('canplay', () => {
+  videoReady = true;
+  if (pendingPlay) {
+    pendingPlay = false;
+    safePlay();
+  }
+});
+
+video.addEventListener('loadedmetadata', () => {
+  timeTotal.textContent = fmtTime(video.duration);
+});
+
+video.addEventListener('timeupdate', () => {
+  timeCurrent.textContent = fmtTime(video.currentTime);
+  if (video.duration) {
+    scrubberFill.style.width = `${(video.currentTime / video.duration) * 100}%`;
+  }
+});
+
+video.addEventListener('play',  () => bigPlay.classList.remove('show'));
+video.addEventListener('pause', () => bigPlay.classList.add('show'));
+video.addEventListener('ended', () => bigPlay.classList.add('show'));
+
+video.addEventListener('error', (e) => {
+  console.warn('Video error', e, video.error);
+});
+
+function safePlay() {
+  if (!videoReady) {
+    pendingPlay = true;
+    try { video.load(); } catch (_) {}
+    return;
+  }
+  const p = video.play();
+  if (p && p.catch) p.catch(err => console.warn('Play() rejected:', err));
+}
+
+btnPlay.addEventListener('click', (e) => { e.stopPropagation(); safePlay(); });
+btnPause.addEventListener('click', (e) => { e.stopPropagation(); video.pause(); });
+btnStop.addEventListener('click', (e) => {
+  e.stopPropagation();
+  video.pause();
+  try { video.currentTime = 0; } catch (_) {}
+});
+bigPlayBtn.addEventListener('click', (e) => { e.stopPropagation(); safePlay(); });
+
+// Click anywhere on the video frame (not on controls) to toggle play/pause
+videoFrame.addEventListener('click', (e) => {
+  if (e.target.closest('.video-controls') || e.target.closest('.video-bigplay')) return;
+  if (video.paused) safePlay(); else video.pause();
+});
+
+scrubber.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const rect = scrubber.getBoundingClientRect();
+  const ratio = (e.clientX - rect.left) / rect.width;
+  if (video.duration) video.currentTime = ratio * video.duration;
+});
+
+/* ============================================================
+   GLOBAL KEYBOARD MAPPING
+   ----  Number keys 1-4 hold-to-sustain (matches click-and-hold).
+         Spacebar toggles video play/pause.
+   ============================================================ */
+const numKeyHeld = { 1: false, 2: false, 3: false, 4: false };
+
+document.addEventListener('keydown', async (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  // Spacebar = video play/pause (only when not focused on a chord button)
+  if (e.code === 'Space' && !e.target.classList.contains('chord-btn')) {
+    e.preventDefault();
+    if (video.paused) safePlay(); else video.pause();
+    return;
+  }
+
+  const num = parseInt(e.key, 10);
+  if (num >= 1 && num <= 4) {
+    if (e.repeat) return;            // ignore OS auto-repeat
+    if (numKeyHeld[num]) return;     // already pressed
+    numKeyHeld[num] = true;
+    const btn = document.querySelectorAll('.chord-btn')[num - 1];
+    if (btn) {
+      await ensureAudio();
+      onChordPress(num - 1, btn);
+    }
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  const num = parseInt(e.key, 10);
+  if (num >= 1 && num <= 4 && numKeyHeld[num]) {
+    numKeyHeld[num] = false;
+    const btn = document.querySelectorAll('.chord-btn')[num - 1];
+    if (btn) onChordRelease(num - 1, btn);
+  }
+});
+
+// Safety: if window loses focus mid-hold, release everything
+window.addEventListener('blur', () => {
+  Object.keys(numKeyHeld).forEach(k => {
+    if (numKeyHeld[k]) {
+      numKeyHeld[k] = false;
+      const btn = document.querySelectorAll('.chord-btn')[k - 1];
+      if (btn) onChordRelease(parseInt(k, 10) - 1, btn);
+    }
+  });
+  // Also release any synth voices still ringing
+  if (audioReady && activeSynth) {
+    try { activeSynth.releaseAll(); } catch (_) {}
+  }
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  buildKeyboard();
+  buildChordButtons();
+  buildInstrumentSelector();
+  buildProgression();
+  attachFirstInteractionListener();
+
+  // Force the video to start loading immediately
+  try { video.load(); } catch (_) {}
+});
+</script>
+
+</body>
+</html>
